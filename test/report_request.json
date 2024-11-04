@@ -1,0 +1,28 @@
+{
+  "columns": [
+    "date",
+    "sum_impressions",
+    "sum_spend"
+  ],
+  "filters": {
+    "type": "and",
+    "value": [
+      {
+        "type": "gte",
+        "column": "date",
+        "value": "2020-01-01"
+      },
+      {
+        "type": "lt",
+        "column": "date",
+        "value": "2021-01-01"
+      }
+    ]
+  },
+  "sort": [
+    {
+      "dir": "asc",
+      "column": "date"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+---
+name: default
+columns:
+  - name: "T_DATE"
+    column_id: "date"
+    expression: "to_date(ts)"
+    data_type: "i32"
+
+  - name: "T_CAMPAIGN_ID"
+    column_id: "campaign_id"
+    expression: "insertion_order.campaign_id"
+    data_type: "i32"
+
+  - name: "T_INSERTION_ORDER_ID"
+    column_id: "insertion_order_id"
+    expression: "line_item.insertion_order_id"
+    data_type: "i32"
+
+  - name: "T_LINE_ITEM_ID"
+    column_id: "line_item_id"
+    expression: "line_item_id"
+    data_type: "i32"
+
+  - name: "T_IMPRESSIONS"
+    column_id: "sum_impressions"
+    expression: "sum(impressions)"
+    data_type: "i64"
+
+  - name: "T_SPEND"
+    column_id: "sum_spend"
+    expression: "sum(spend)"
+    data_type: "dec64"

@@ -1,0 +1,26 @@
+[package]
+name = "reporting"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+opt-level = 3
+
+[profile.profiling]
+inherits = "release"
+debug = true
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tracing-subscriber = "0.3"
+axum = "0.7"
+axum-macros = "0.4"
+serde_yml = "0.0.12"
+serde = { version = "1.0", features = ["derive", "rc"] }
+sqlx = { version = "0.8", features = ["sqlite", "postgres", "runtime-tokio-rustls"] }
+uuid = { version = "1.5", features = ["v4"] }
+askama = "0.12"
+config = "0.14"
+serde_json = "1.0"
