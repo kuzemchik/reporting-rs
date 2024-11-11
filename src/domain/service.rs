@@ -1,10 +1,12 @@
-use crate::models::models::{Column, Datasource, Report, ReportRequest, ReportStatus};
-use crate::models::service::Error::ColumnNotFound;
+use crate::domain::models::{
+    Column, Datasource, Report, ReportRequest, ReportStatus,
+};
+use crate::domain::service::Error::ColumnNotFound;
 use std::rc::Rc;
 use uuid::Uuid;
 
 #[derive(Debug)]
-enum Error {
+pub enum Error {
     ColumnNotFound(String),
 }
 
@@ -13,7 +15,14 @@ pub struct ReportService {
 }
 
 impl ReportService {
-    pub fn create_report(&self, report_request: ReportRequest) -> Result<Report, Error> {
+    pub fn new(datasource: Datasource) -> Self {
+        ReportService { datasource }
+    }
+
+    pub fn create_report(
+        &self,
+        report_request: ReportRequest,
+    ) -> Result<Report, Error> {
         let id: Rc<str> = Rc::from(Uuid::new_v4().to_string().as_str());
         let columns: Vec<Column> = report_request
             .columns
@@ -45,36 +54,18 @@ impl ReportService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::service::tests::TestError::{LoadFile, ParseJson, ParseYaml};
-    use std::cmp::PartialEq;
-    use std::fs;
-    use std::rc::Rc;
-
-    #[derive(Debug)]
-    enum TestError {
-        LoadFile(String, String),
-        ParseJson(String, String),
-        ParseYaml(String, String),
-    }
+    use crate::domain::tests::{load_json, load_yaml};
 
     #[test]
     fn test_column() {
         // let request_string = .unwrap();
         let request_file = "test/report_request.json";
-        let request: ReportRequest = fs::read_to_string("test/report_request.json")
-            .map_err(|e| LoadFile(request_file.to_string(), e.to_string()))
-            .and_then(|req| {
-                serde_json::from_str(req.as_str()).map_err(|e| ParseJson(req, e.to_string()))
-            })
-            .expect("Could not parse request json");
+        let request: ReportRequest =
+            load_json(request_file).expect("Could not parse request json");
 
         let datasource_file = "test/datasource.yaml";
-        let datasource: Datasource = fs::read_to_string(datasource_file)
-            .map_err(|e| LoadFile(datasource_file.to_string(), e.to_string()))
-            .and_then(|ds| {
-                serde_yml::from_str(ds.as_str()).map_err(|e| ParseYaml(ds, e.to_string()))
-            })
-            .expect("Could not parse request yaml");
+        let datasource: Datasource =
+            load_yaml(datasource_file).expect("Could not parse request yaml");
 
         let report_service = ReportService { datasource };
         let report = report_service

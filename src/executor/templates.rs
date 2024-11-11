@@ -1,4 +1,4 @@
-use crate::models::models::Column;
+use crate::domain::models::Column;
 use askama::Template;
 use serde::Deserialize;
 
@@ -38,7 +38,8 @@ mod tests {
 
     #[test]
     fn check_query_generation() {
-        let template = ReportQuery::new(vec![], Dim::IO as u64).render().unwrap();
+        let template =
+            ReportQuery::new(vec![], Dim::IO as u64).render().unwrap();
         assert_ne!(template, "");
     }
 }

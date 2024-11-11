@@ -1,5 +1,4 @@
 pub mod api;
-pub mod settings;
-pub mod models;
+pub mod domain;
 pub mod executor;
-
+pub mod settings;

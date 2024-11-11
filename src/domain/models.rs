@@ -68,11 +68,13 @@ pub struct Report {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use crate::domain::tests::{load_json, load_yaml};
+
     #[test]
     fn test_deserialize_request() {
-        let request_string = fs::read_to_string("test/report_request.json").unwrap();
-        let request: ReportRequest = serde_json::from_str(request_string.as_str()).unwrap();
+        let request_file = "test/report_request.json";
+        let request: ReportRequest =
+            load_json(request_file).expect("Could not parse request json");
         if let Filter::And { value } = request.filters {
             value.iter().for_each(|f| match f {
                 Filter::Gte { column, value } => {
@@ -92,8 +94,9 @@ mod tests {
 
     #[test]
     fn test_deserialize_datasource() {
-        let datasource_string = fs::read_to_string("test/datasource.yaml").unwrap();
-        let datasource: Datasource = serde_yml::from_str(datasource_string.as_str()).unwrap();
+        let datasource_file = "test/datasource.yaml";
+        let datasource: Datasource =
+            load_yaml(datasource_file).expect("Could not parse request yaml");
         assert_eq!(datasource.name, Rc::from("default"));
         datasource
             .columns
@@ -115,7 +118,10 @@ mod tests {
                     assert_eq!(c.name.to_string(), "T_LINE_ITEM_ID".to_string())
                 }
                 "sum_impressions" => {
-                    assert_eq!(c.expression.to_string(), "sum(impressions)".to_string())
+                    assert_eq!(
+                        c.expression.to_string(),
+                        "sum(impressions)".to_string()
+                    )
                 }
                 "sum_spend" => {
                     assert_eq!(c.data_type.to_string(), "dec64".to_string())

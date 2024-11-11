@@ -1,6 +1,6 @@
 use crate::api::Env;
+use crate::domain::models::*;
 use crate::executor::templates::{Dim, ReportQuery};
-use crate::models::models::*;
 use askama::Template;
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;

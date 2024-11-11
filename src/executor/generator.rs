@@ -1,11 +1,16 @@
-use crate::models::models::{Column, Report};
+use crate::domain::models::{Column, Datasource, Report};
+use crate::executor::query::SqlAst;
 
+enum Error {}
 trait Visitor<I, O> {
     fn visit(&self, input: I) -> O;
 }
 
 trait Visitable {
-    fn visit<'a, O, Vis: Visitor<&'a Self, O>>(&'a self, visitor: &'a Vis) -> O {
+    fn accept<'a, O, Vis: Visitor<&'a Self, O>>(
+        &'a self,
+        visitor: &'a Vis,
+    ) -> O {
         visitor.visit(&self)
     }
 }
@@ -13,13 +18,12 @@ trait Visitable {
 impl Visitable for Column {}
 impl Visitable for Report {}
 
-// impl Visitor<String, Result<Column, Error>> for ConversionVisitor {
-//     fn visit(&self, input: String) -> Result<Column, Error> {
-//         self.datasource
-//             .columns
-//             .iter()
-//             .find(|c| c.column_id.to_string() == input)
-//             .cloned()
-//             .ok_or(ColumnNotFound(input.clone()))
+struct QueryPlanner {
+    datasource: Datasource,
+}
+// impl Visitor<Report, Result<SqlAst, Error>> for QueryPlanner {
+//     fn visit(&self, input: Report) -> Result<SqlAst, Error> {
+//         let sqlAst =
+//             input.columns
 //     }
 // }

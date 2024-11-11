@@ -1,5 +1,5 @@
-use crate::models::models::Datasource;
-use crate::models::models::Report;
+use crate::domain::models::Datasource;
+use crate::domain::models::Report;
 use sqlx::{Executor, PgPool};
 use std::fs;
 
@@ -24,7 +24,8 @@ impl Repository {
     }
 
     pub fn load_datasources(&self) -> Vec<Datasource> {
-        let datasources = fs::read_to_string("../test/datasource.yaml").unwrap();
+        let datasources =
+            fs::read_to_string("../test/datasource.yaml").unwrap();
         serde_yml::from_str(datasources.as_str()).unwrap()
     }
     // pub async fn create_report(&self, body: Report) -> Result<Report, PgError> {
