@@ -1,33 +1,35 @@
-pub enum SqlAst<'ast_lifetime> {
+use std::rc::Rc;
+
+pub enum SqlAst {
     Select {
-        columns: Vec<SqlAst<'ast_lifetime>>,
-        from: Box<SqlAst<'ast_lifetime>>,
-        where_clause: Option<Box<SqlAst<'ast_lifetime>>>,
-        group_by: Option<Vec<SqlAst<'ast_lifetime>>>,
-        order_by: Option<Vec<SqlAst<'ast_lifetime>>>,
+        columns: Vec<SqlAst>,
+        from: Box<SqlAst>,
+        where_clause: Option<Box<SqlAst>>,
+        group_by: Option<Vec<SqlAst>>,
+        order_by: Option<Vec<SqlAst>>,
     },
-    Table(&'ast_lifetime str, &'ast_lifetime str),
-    Subquery(Box<SqlAst<'ast_lifetime>>, &'ast_lifetime str),
-    Column(&'ast_lifetime str),
+    Table(Rc<str>, Rc<str>),
+    Subquery(Box<SqlAst>, Rc<str>),
+    Column(Rc<str>),
     ColumnAlias {
-        column: &'ast_lifetime str,
-        alias: &'ast_lifetime str,
+        column: Rc<str>,
+        alias: Rc<str>,
     },
     Join {
-        left: Box<SqlAst<'ast_lifetime>>,
-        right: Box<SqlAst<'ast_lifetime>>,
+        left: Box<SqlAst>,
+        right: Box<SqlAst>,
         join_type: JoinType,
-        on: Box<SqlAst<'ast_lifetime>>,
+        on: Box<SqlAst>,
     },
-    Expression(Box<SqlAst<'ast_lifetime>>),
+    Expression(Box<SqlAst>),
 
     Comparison {
-        left: Box<SqlAst<'ast_lifetime>>,
+        left: Box<SqlAst>,
         operator: Operator,
-        right: Box<SqlAst<'ast_lifetime>>,
+        right: Box<SqlAst>,
     },
     Logical {
-        items: Vec<SqlAst<'ast_lifetime>>,
+        items: Vec<SqlAst>,
         variant: LogicalVariant,
     },
 }
@@ -92,7 +94,7 @@ trait SqlVisitor {
     fn visit_logical(&mut self, items: &[SqlAst], variant: &LogicalVariant);
 }
 
-impl SqlAst<'_> {
+impl SqlAst {
     fn accept<V: SqlVisitor>(&self, visitor: &mut V) {
         match self {
             SqlAst::Select {
@@ -271,35 +273,36 @@ impl SqlVisitor for SQLGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rc;
 
     #[test]
     fn test_sql_ast() {
-        let column = SqlAst::Column("username");
+        let column = SqlAst::Column(rc!["username"]);
         let column_alias = SqlAst::ColumnAlias {
-            column: "username",
-            alias: "user",
+            column: rc!["username"],
+            alias: rc!["user"],
         };
 
         let join_clause = SqlAst::Join {
-            left: Box::new(SqlAst::Table("orders", "orders")),
-            right: Box::new(SqlAst::Table("users", "users")),
+            left: Box::new(SqlAst::Table(rc!["orders"], rc!["orders"])),
+            right: Box::new(SqlAst::Table(rc!["users"], rc!["users"])),
             join_type: JoinType::Inner,
             on: Box::new(SqlAst::Comparison {
-                left: Box::new(SqlAst::Column("orders.user_id")),
+                left: Box::new(SqlAst::Column(rc!["orders.user_id"])),
                 operator: Operator::Equal,
-                right: Box::new(SqlAst::Column("users.id")),
+                right: Box::new(SqlAst::Column(rc!["users.id"])),
             }),
         };
 
         if let SqlAst::Column(name) = column {
-            assert_eq!(name, "username");
+            assert_eq!(name.as_ref(), "username");
         } else {
             panic!("Expected SQLAst::Column");
         }
 
         if let SqlAst::ColumnAlias { column, alias } = column_alias {
-            assert_eq!(column, "username");
-            assert_eq!(alias, "user");
+            assert_eq!(column, rc!["username"]);
+            assert_eq!(alias, rc!["user"]);
         } else {
             panic!("Expected SQLAst::ColumnAlias");
         }
@@ -312,14 +315,14 @@ mod tests {
         } = join_clause
         {
             if let SqlAst::Table(left_name, alias) = *left {
-                assert_eq!(left_name, "orders");
-                assert_eq!(alias, "orders");
+                assert_eq!(left_name, rc!["orders"]);
+                assert_eq!(alias, rc!["orders"]);
             } else {
                 panic!("Expected SQLAst::Table");
             }
             if let SqlAst::Table(right_name, alias) = *right {
-                assert_eq!(right_name, "users");
-                assert_eq!(alias, "users");
+                assert_eq!(right_name, rc!["users"]);
+                assert_eq!(alias, rc!["users"]);
             } else {
                 panic!("Expected SQLAst::Table");
             }
@@ -333,12 +336,12 @@ mod tests {
             {
                 assert_eq!(operator, Operator::Equal);
                 if let SqlAst::Column(on_left_name) = *on_left {
-                    assert_eq!(on_left_name, "orders.user_id");
+                    assert_eq!(on_left_name, rc!["orders.user_id"]);
                 } else {
                     panic!("Expected SQLAst::Column");
                 }
                 if let SqlAst::Column(on_right_name) = *on_right {
-                    assert_eq!(on_right_name, "users.id");
+                    assert_eq!(on_right_name, rc!["users.id"]);
                 } else {
                     panic!("Expected SQLAst::Column");
                 }
@@ -355,19 +358,19 @@ mod tests {
         let final_query = SqlAst::Select {
             columns: vec![
                 SqlAst::ColumnAlias {
-                    column: "username",
-                    alias: "user",
+                    column: rc!["username"],
+                    alias: rc!["user"],
                 },
-                SqlAst::Column("email"),
+                SqlAst::Column(rc!["email"]),
             ],
-            from: Box::new(SqlAst::Table("users", "users")),
+            from: Box::new(SqlAst::Table(rc!["users"], rc!["users"])),
             where_clause: Some(Box::new(SqlAst::Comparison {
-                left: Box::new(SqlAst::Column("age")),
+                left: Box::new(SqlAst::Column(rc!["age"])),
                 operator: Operator::GreaterOrEqual,
-                right: Box::new(SqlAst::Column("18")),
+                right: Box::new(SqlAst::Column(rc!["18"])),
             })),
             group_by: None,
-            order_by: Some(vec![SqlAst::Column("username")]),
+            order_by: Some(vec![SqlAst::Column(rc!["username"])]),
         };
 
         let mut generator = SQLGenerator::new();
@@ -382,55 +385,58 @@ mod tests {
     #[test]
     fn test_generate_sql_with_subquery_and_joins() {
         let subquery_ast = SqlAst::Expression(Box::new(SqlAst::Select {
-            columns: vec![SqlAst::Column("inner_col")],
-            from: Box::new(SqlAst::Table("inner_table", "inner_table")),
+            columns: vec![SqlAst::Column(rc!["inner_col"])],
+            from: Box::new(SqlAst::Table(
+                rc!["inner_table"],
+                rc!["inner_table"],
+            )),
             where_clause: None,
             group_by: None,
             order_by: None,
         }));
 
         let inner_join = SqlAst::Join {
-            left: Box::new(SqlAst::Table("table1", "table1")),
+            left: Box::new(SqlAst::Table(rc!["table1"], rc!["table1"])),
             right: Box::new(subquery_ast),
             join_type: JoinType::Inner,
             on: Box::new(SqlAst::Comparison {
-                left: Box::new(SqlAst::Column("table1.id")),
+                left: Box::new(SqlAst::Column(rc!["table1.id"])),
                 operator: Operator::Equal,
-                right: Box::new(SqlAst::Column("inner_table.fk_id")),
+                right: Box::new(SqlAst::Column(rc!["inner_table.fk_id"])),
             }),
         };
 
         let left_join = SqlAst::Join {
             left: Box::new(inner_join),
-            right: Box::new(SqlAst::Table("table2", "table2")),
+            right: Box::new(SqlAst::Table(rc!["table2"], rc!["table2"])),
             join_type: JoinType::Left,
             on: Box::new(SqlAst::Comparison {
-                left: Box::new(SqlAst::Column("table1.id")),
+                left: Box::new(SqlAst::Column(rc!["table1.id"])),
                 operator: Operator::Equal,
-                right: Box::new(SqlAst::Column("table2.fk_id")),
+                right: Box::new(SqlAst::Column(rc!["table2.fk_id"])),
             }),
         };
 
         let final_query = SqlAst::Select {
             columns: vec![
                 SqlAst::ColumnAlias {
-                    column: "table1.col1",
-                    alias: "alias1",
+                    column: rc!["table1.col1"],
+                    alias: rc!["alias1"],
                 },
-                SqlAst::Column("table2.col2"),
+                SqlAst::Column(rc!["table2.col2"]),
             ],
             from: Box::new(left_join),
             where_clause: Some(Box::new(SqlAst::Logical {
                 items: vec![
                     SqlAst::Comparison {
-                        left: Box::new(SqlAst::Column("date")),
+                        left: Box::new(SqlAst::Column(rc!["date"])),
                         operator: Operator::GreaterOrEqual,
-                        right: Box::new(SqlAst::Column("?")),
+                        right: Box::new(SqlAst::Column(rc!["?"])),
                     },
                     SqlAst::Comparison {
-                        left: Box::new(SqlAst::Column("date")),
+                        left: Box::new(SqlAst::Column(rc!["date"])),
                         operator: Operator::Less,
-                        right: Box::new(SqlAst::Column("?")),
+                        right: Box::new(SqlAst::Column(rc!["?"])),
                     },
                 ],
                 variant: LogicalVariant::And,
@@ -457,64 +463,71 @@ mod tests {
         let aggregation_query = SqlAst::Select {
             columns: vec![
                 SqlAst::ColumnAlias {
-                    column: "from_unixtime(fact_table.ts, 'YYYY-mm-dd')",
-                    alias: "date",
+                    column: rc!["from_unixtime(fact_table.ts, 'YYYY-mm-dd')"],
+                    alias: rc!["date"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "campaign_hierarchy.campaign_id",
-                    alias: "campaign_id",
+                    column: rc!["campaign_hierarchy.campaign_id"],
+                    alias: rc!["campaign_id"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "fact_table.line_item_id",
-                    alias: "line_item_id",
+                    column: rc!["fact_table.line_item_id"],
+                    alias: rc!["line_item_id"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "sum(fact_table.impressions)",
-                    alias: "sum_impressions",
+                    column: rc!["sum(fact_table.impressions)"],
+                    alias: rc!["sum_impressions"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "sum(fact_table.clicks)",
-                    alias: "sum_clicks",
+                    column: rc!["sum(fact_table.clicks)"],
+                    alias: rc!["sum_clicks"],
                 },
             ],
             from: Box::new(SqlAst::Join {
-                left: Box::new(SqlAst::Table("fact_table", "fact_table")),
+                left: Box::new(SqlAst::Table(
+                    rc!["fact_table"],
+                    rc!["fact_table"],
+                )),
                 right: Box::new(SqlAst::Table(
-                    "campaign_hierarchy",
-                    "campaign_hierarchy",
+                    rc!["campaign_hierarchy"],
+                    rc!["campaign_hierarchy"],
                 )),
                 join_type: JoinType::Left,
                 on: Box::new(SqlAst::Comparison {
-                    left: Box::new(SqlAst::Column("fact_table.line_item_id")),
+                    left: Box::new(SqlAst::Column(rc![
+                        "fact_table.line_item_id"
+                    ])),
                     operator: Operator::Equal,
-                    right: Box::new(SqlAst::Column(
-                        "campaign_hierarchy.line_item_id",
-                    )),
+                    right: Box::new(SqlAst::Column(rc![
+                        "campaign_hierarchy.line_item_id"
+                    ])),
                 }),
             }),
             where_clause: Some(Box::new(SqlAst::Logical {
                 items: vec![
                     SqlAst::Comparison {
-                        left: Box::new(SqlAst::Column(
-                            "from_unixtime(fact_table.ts, 'YYYY-mm-dd')",
-                        )),
+                        left: Box::new(SqlAst::Column(rc![
+                            "from_unixtime(fact_table.ts, 'YYYY-mm-dd')"
+                        ])),
                         operator: Operator::GreaterOrEqual,
-                        right: Box::new(SqlAst::Column("?")),
+                        right: Box::new(SqlAst::Column(rc!["?"])),
                     },
                     SqlAst::Comparison {
-                        left: Box::new(SqlAst::Column(
-                            "from_unixtime(fact_table.ts, 'YYYY-mm-dd')",
-                        )),
+                        left: Box::new(SqlAst::Column(rc![
+                            "from_unixtime(fact_table.ts, 'YYYY-mm-dd')"
+                        ])),
                         operator: Operator::Less,
-                        right: Box::new(SqlAst::Column("?")),
+                        right: Box::new(SqlAst::Column(rc!["?"])),
                     },
                 ],
                 variant: LogicalVariant::And,
             })),
             group_by: Some(vec![
-                SqlAst::Column("from_unixtime(fact_table.ts, 'YYYY-mm-dd')"),
-                SqlAst::Column("fact_table.line_item_id"),
-                SqlAst::Column("campaign_hierarchy.campaign_id"),
+                SqlAst::Column(rc![
+                    "from_unixtime(fact_table.ts, 'YYYY-mm-dd')"
+                ]),
+                SqlAst::Column(rc!["fact_table.line_item_id"]),
+                SqlAst::Column(rc!["campaign_hierarchy.campaign_id"]),
             ]),
             order_by: None,
         };
@@ -522,46 +535,51 @@ mod tests {
         let dim_join = SqlAst::Join {
             left: Box::new(SqlAst::Subquery(
                 Box::new(aggregation_query),
-                "facts",
+                rc!["facts"],
             )),
-            right: Box::new(SqlAst::Table("dim_campaign", "dim_campaign")),
+            right: Box::new(SqlAst::Table(
+                rc!["dim_campaign"],
+                rc!["dim_campaign"],
+            )),
             join_type: JoinType::Left,
             on: Box::new(SqlAst::Comparison {
-                left: Box::new(SqlAst::Column("facts.campaign_id")),
+                left: Box::new(SqlAst::Column(rc!["facts.campaign_id"])),
                 operator: Operator::Equal,
-                right: Box::new(SqlAst::Column("dim_campaign.campaign_id")),
+                right: Box::new(SqlAst::Column(rc![
+                    "dim_campaign.campaign_id"
+                ])),
             }),
         };
 
         let final_query = SqlAst::Select {
             columns: vec![
                 SqlAst::ColumnAlias {
-                    column: "facts.date",
-                    alias: "date",
+                    column: rc!["facts.date"],
+                    alias: rc!["date"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "facts.campaign_id",
-                    alias: "campaign_id",
+                    column: rc!["facts.campaign_id"],
+                    alias: rc!["campaign_id"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "dim_campaign.campaign_name",
-                    alias: "campaign_name",
+                    column: rc!["dim_campaign.campaign_name"],
+                    alias: rc!["campaign_name"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "facts.line_item_id",
-                    alias: "line_item_id",
+                    column: rc!["facts.line_item_id"],
+                    alias: rc!["line_item_id"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "dim_campaign.line_item_name",
-                    alias: "line_item_name",
+                    column: rc!["dim_campaign.line_item_name"],
+                    alias: rc!["line_item_name"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "facts.sum_impressions",
-                    alias: "sum_impressions",
+                    column: rc!["facts.sum_impressions"],
+                    alias: rc!["sum_impressions"],
                 },
                 SqlAst::ColumnAlias {
-                    column: "facts.sum_clicks",
-                    alias: "sum_clicks",
+                    column: rc!["facts.sum_clicks"],
+                    alias: rc!["sum_clicks"],
                 },
             ],
             from: Box::new(dim_join),

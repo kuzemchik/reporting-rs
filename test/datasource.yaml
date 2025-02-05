@@ -4,29 +4,41 @@ columns:
   - name: "T_DATE"
     column_id: "date"
     expression: "to_date(ts)"
+    column_type: grouping
     data_type: "i32"
 
   - name: "T_CAMPAIGN_ID"
     column_id: "campaign_id"
     expression: "insertion_order.campaign_id"
+    column_type: grouping
     data_type: "i32"
 
   - name: "T_INSERTION_ORDER_ID"
     column_id: "insertion_order_id"
     expression: "line_item.insertion_order_id"
+    column_type: grouping
     data_type: "i32"
 
   - name: "T_LINE_ITEM_ID"
     column_id: "line_item_id"
     expression: "line_item_id"
+    column_type: grouping
     data_type: "i32"
 
   - name: "T_IMPRESSIONS"
     column_id: "sum_impressions"
     expression: "sum(impressions)"
+    column_type: aggregate
     data_type: "i64"
 
   - name: "T_SPEND"
     column_id: "sum_spend"
     expression: "sum(spend)"
+    column_type: aggregate
+    data_type: "dec64"
+
+  - name: "T_CPM"
+    column_id: "sum_spend"
+    expression: "sum_spend/sum_impressions*1000"
+    column_type: formula
     data_type: "dec64"

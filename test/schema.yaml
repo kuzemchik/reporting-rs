@@ -1,0 +1,17 @@
+---
+name: default
+tables:
+  - name: facts
+    type: fact
+
+  - name: campaign_hierarchy
+    type: hierarchy
+    column: line_item_id
+
+  - name: dim_campaign
+    type: dimension
+    column: campaign_id
+
+  - name: dim_line_item
+    type: dimension
+    column: line_item_id

@@ -1,14 +1,10 @@
 use crate::domain::models::{
     Column, Datasource, Report, ReportRequest, ReportStatus,
 };
-use crate::domain::service::Error::ColumnNotFound;
 use std::rc::Rc;
 use uuid::Uuid;
 
-#[derive(Debug)]
-pub enum Error {
-    ColumnNotFound(String),
-}
+enum Error {}
 
 pub struct ReportService {
     datasource: Datasource,
@@ -19,35 +15,18 @@ impl ReportService {
         ReportService { datasource }
     }
 
-    pub fn create_report(
-        &self,
-        report_request: ReportRequest,
-    ) -> Result<Report, Error> {
+    pub fn create_report(&self, request: ReportRequest) -> Report {
         let id: Rc<str> = Rc::from(Uuid::new_v4().to_string().as_str());
-        let columns: Vec<Column> = report_request
-            .columns
-            .iter()
-            .map(|c| self.map_column(c))
-            .collect::<Result<Vec<Column>, Error>>()?;
 
         let status = ReportStatus::Pending;
         let metadata = None;
         let report = Report {
             id,
-            columns,
+            request,
             status,
             metadata,
         };
-        Ok(report)
-    }
-
-    fn map_column(&self, input: &String) -> Result<Column, Error> {
-        self.datasource
-            .columns
-            .iter()
-            .find(|c| c.column_id.to_string() == *input)
-            .cloned()
-            .ok_or(ColumnNotFound(input.clone()))
+        report
     }
 }
 
@@ -68,9 +47,7 @@ mod tests {
             load_yaml(datasource_file).expect("Could not parse request yaml");
 
         let report_service = ReportService { datasource };
-        let report = report_service
-            .create_report(request)
-            .expect("Could not create report");
+        let report = report_service.create_report(request);
 
         assert_eq!(report.status, ReportStatus::Pending);
     }

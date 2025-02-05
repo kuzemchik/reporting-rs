@@ -6,12 +6,20 @@ pub struct Datasource {
     pub name: Rc<str>,
     pub columns: Vec<Column>,
 }
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Column {
     pub name: Rc<str>,
     pub column_id: Rc<str>,
     pub expression: Rc<str>,
+    pub column_type: ColumnType,
     pub data_type: Rc<str>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ColumnType {
+    Grouping,
+    Aggregate,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -23,7 +31,7 @@ pub enum ReportStatus {
     Expired,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Filter {
     And { value: Vec<Filter> },
@@ -35,14 +43,14 @@ pub enum Filter {
     Gte { column: String, value: String },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "dir", rename_all = "snake_case")]
 pub enum Order {
     Asc { column: String },
     Desc { column: String },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ReportRequest {
     pub columns: Vec<String>,
     pub filters: Filter,
@@ -60,7 +68,7 @@ pub struct ReportMetadata {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Report {
     pub id: Rc<str>,
-    pub columns: Vec<Column>,
+    pub request: ReportRequest,
     pub status: ReportStatus,
     pub metadata: Option<ReportMetadata>,
 }
