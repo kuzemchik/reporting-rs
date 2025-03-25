@@ -72,14 +72,14 @@ impl QueryPlanner {
                             "from_unixtime(fact_table.ts, 'YYYY-mm-dd')"
                         ])),
                         operator: Operator::GreaterOrEqual,
-                        right: Box::new(SqlAst::Value(start_date)),
+                        right: Box::new(SqlAst::Literal(start_date)),
                     },
                     SqlAst::Comparison {
                         left: Box::new(SqlAst::Column(rc![
                             "from_unixtime(fact_table.ts, 'YYYY-mm-dd')"
                         ])),
                         operator: Operator::Less,
-                        right: Box::new(SqlAst::Value(end_date)),
+                        right: Box::new(SqlAst::Literal(end_date)),
                     },
                 ],
                 variant: LogicalVariant::And,
