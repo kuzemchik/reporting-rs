@@ -132,3 +132,62 @@ impl QueryPlanner {
             .ok_or(Error::ColumnNotFound(input.clone()))
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::models::{Datasource, Column, ReportRequest, Filter, ColumnType};
+
+    #[test]
+    fn test_plan_success() {
+        // Create a dummy Column for testing.
+        let column = Column {
+            name: std::rc::Rc::from("username"),
+            column_id: std::rc::Rc::from("username"),
+            expression: std::rc::Rc::from("username"),
+            column_type: ColumnType::Grouping,
+            data_type: std::rc::Rc::from("text"),
+        };
+
+        let datasource = Datasource {
+            name: std::rc::Rc::from("default"),
+            columns: vec![column],
+            // Add other required fields if necessary.
+        };
+
+        let planner = QueryPlanner { datasource };
+
+        let request = ReportRequest {
+            columns: vec!["username".to_string()],
+            filters: Filter::And { value: vec![
+                Filter::Gte { column: "date".to_string(), value: "2020-01-01".to_string() },
+                Filter::Lt { column: "date".to_string(), value: "2021-01-01".to_string() },
+            ]},
+            sort: vec![],
+            // Add other fields if ReportRequest requires them.
+        };
+
+        let result = planner.plan(request);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_plan_missing_filter() {
+        let datasource = Datasource {
+            name: std::rc::Rc::from("default"),
+            columns: vec![],
+            // Add other required fields if necessary.
+        };
+
+        let planner = QueryPlanner { datasource };
+
+        let request = ReportRequest {
+            columns: vec![],
+            filters: Filter::Or { value: vec![] },
+            sort: vec![],
+            // Add other fields if ReportRequest requires them.
+        };
+
+        let result = planner.plan(request);
+        assert!(result.is_err());
+    }
+}
