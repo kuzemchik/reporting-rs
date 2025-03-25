@@ -165,7 +165,7 @@ impl SQLGenerator {
                     self.sql.push(')');
                 } else {
                     self.visit(right);
-                },
+                }
             SqlAst::Literal(value) => {
                 self.sql.push_str(&format!(" {}", value));
             }
