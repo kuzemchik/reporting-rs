@@ -1,5 +1,4 @@
-use crate::domain::models::{Column, Datasource, Report, ReportRequest};
-use crate::executor::planner::Error::ColumnNotFound;
+use crate::domain::models::{Column, Datasource, ReportRequest};
 use crate::executor::query::{JoinType, LogicalVariant, Operator, SqlAst};
 use crate::rc;
 use std::rc::Rc;
@@ -8,34 +7,17 @@ use std::rc::Rc;
 pub enum Error {
     ColumnNotFound(String),
 }
-trait Visitor<I, O> {
-    fn visit(&self, input: I) -> O;
-}
-
-trait Visitable {
-    fn accept<'a, O, Vis: Visitor<&'a Self, O>>(
-        &'a self,
-        visitor: &'a Vis,
-    ) -> O {
-        visitor.visit(&self)
-    }
-}
-
-impl Visitable for Column {}
-impl Visitable for Report {}
-
-impl Visitable for String {}
 
 struct QueryPlanner {
     datasource: Datasource,
 }
 
-impl Visitor<ReportRequest, Result<SqlAst, Error>> for QueryPlanner {
-    fn visit(&self, request: ReportRequest) -> Result<SqlAst, Error> {
+impl QueryPlanner {
+    pub fn plan(&self, request: ReportRequest) -> Result<SqlAst, Error> {
         let columns: Vec<Column> = request
             .columns
             .iter()
-            .map(|c| c.accept(self))
+            .map(|c| self.get_column(c))
             .collect::<Result<Vec<Column>, Error>>()?;
 
         let aggregation_query = SqlAst::Select {
@@ -123,14 +105,13 @@ impl Visitor<ReportRequest, Result<SqlAst, Error>> for QueryPlanner {
         };
         Ok(final_query)
     }
-}
-impl Visitor<&String, Result<Column, Error>> for QueryPlanner {
-    fn visit(&self, input: &String) -> Result<Column, Error> {
+
+    fn get_column(&self, input: &String) -> Result<Column, Error> {
         self.datasource
             .columns
             .iter()
             .find(|c| c.column_id.to_string() == *input)
             .cloned()
-            .ok_or(ColumnNotFound(input.clone()))
+            .ok_or(Error::ColumnNotFound(input.clone()))
     }
 }

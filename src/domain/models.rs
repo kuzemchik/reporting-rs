@@ -20,6 +20,7 @@ pub struct Column {
 pub enum ColumnType {
     Grouping,
     Aggregate,
+    Formula,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]

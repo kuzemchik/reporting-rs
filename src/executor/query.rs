@@ -58,86 +58,6 @@ pub enum LogicalVariant {
     Or,
 }
 
-trait SqlVisitor {
-    fn visit_select(
-        &mut self,
-        columns: &[SqlAst],
-        from: &Box<SqlAst>,
-        where_clause: &Option<Box<SqlAst>>,
-        group_by: &Option<Vec<SqlAst>>,
-        order_by: &Option<Vec<SqlAst>>,
-    );
-    fn visit_column(&mut self, name: &str);
-    fn visit_join(
-        &mut self,
-        left: &SqlAst,
-        right: &SqlAst,
-        join_type: &JoinType,
-        on: &SqlAst,
-    );
-
-    fn visit_subquery(&mut self, items: &SqlAst, alias: &str);
-
-    fn visit_where(&mut self, condition: &SqlAst);
-    fn visit_list(&mut self, items: &[SqlAst], separator: &str);
-    fn visit_table(&mut self, name: &str, alias: &str);
-    fn visit_column_alias(&mut self, column: &str, alias: &str);
-
-    fn visit_expression(&mut self, sql_ast: &SqlAst);
-
-    fn visit_condition(
-        &mut self,
-        left: &SqlAst,
-        operator: &Operator,
-        right: &SqlAst,
-    );
-    fn visit_logical(&mut self, items: &[SqlAst], variant: &LogicalVariant);
-}
-
-impl SqlAst {
-    fn accept<V: SqlVisitor>(&self, visitor: &mut V) {
-        match self {
-            SqlAst::Select {
-                columns,
-                from,
-                where_clause,
-                group_by,
-                order_by,
-            } => visitor.visit_select(
-                columns,
-                from,
-                where_clause,
-                group_by,
-                order_by,
-            ),
-            SqlAst::Table(name, alias) => visitor.visit_table(name, alias), // Assuming reusing visit_column for Table visitation
-            SqlAst::Column(name) => visitor.visit_column(name),
-            SqlAst::ColumnAlias { column, alias } => {
-                visitor.visit_column_alias(column, alias)
-            }
-            SqlAst::Join {
-                left,
-                right,
-                join_type,
-                on,
-            } => visitor.visit_join(left, right, join_type, on),
-            SqlAst::Expression(sql_ast) => visitor.visit_expression(sql_ast),
-            SqlAst::Subquery(sql_ast, alias) => {
-                visitor.visit_subquery(sql_ast, alias)
-            }
-
-            SqlAst::Logical { items, variant } => {
-                visitor.visit_logical(items, variant)
-            }
-            SqlAst::Comparison {
-                left,
-                operator,
-                right,
-            } => visitor.visit_condition(left, operator, right),
-        }
-    }
-}
-
 pub struct SQLGenerator {
     sql: String,
 }
@@ -148,39 +68,106 @@ impl SQLGenerator {
     }
 
     pub fn generate_sql(&mut self, ast: &SqlAst) -> String {
-        ast.accept(self);
+        self.visit(ast);
         self.sql.clone()
     }
-}
 
-impl SqlVisitor for SQLGenerator {
-    fn visit_select(
-        &mut self,
-        columns: &[SqlAst],
-        from: &Box<SqlAst>,
-        where_clause: &Option<Box<SqlAst>>,
-        group_by: &Option<Vec<SqlAst>>,
-        order_by: &Option<Vec<SqlAst>>,
-    ) {
-        self.sql.push_str("SELECT");
-        self.visit_list(columns, ",");
-        self.sql.push_str(" FROM");
-        from.accept(self);
-        if let Some(where_clause) = where_clause {
-            self.sql.push_str(" WHERE");
-            self.visit_where(where_clause);
+    fn visit(&mut self, ast: &SqlAst) {
+        match ast {
+            SqlAst::Select {
+                columns,
+                from,
+                where_clause,
+                group_by,
+                order_by,
+            } => {
+                self.sql.push_str("SELECT");
+                self.visit_list(columns, ",");
+                self.sql.push_str(" FROM");
+                self.visit(from);
+                if let Some(where_clause) = where_clause {
+                    self.sql.push_str(" WHERE");
+                    self.visit(where_clause);
+                }
+                if let Some(group_by_clause) = group_by {
+                    self.sql.push_str(" GROUP BY");
+                    self.visit_list(group_by_clause, ",");
+                }
+                if let Some(order_by_clause) = order_by {
+                    self.sql.push_str(" ORDER BY");
+                    self.visit_list(order_by_clause, ",");
+                }
+            }
+            SqlAst::Table(name, alias) => {
+                self.sql.push_str(&format!(" {} {}", name, alias));
+            }
+            SqlAst::Column(name) => {
+                self.sql.push_str(&format!(" {}", name));
+            }
+            SqlAst::ColumnAlias { column, alias } => {
+                self.sql.push_str(&format!(" {} AS {}", column, alias));
+            }
+            SqlAst::Join {
+                left,
+                right,
+                join_type,
+                on,
+            } => {
+                self.visit(left);
+                let join_str = match join_type {
+                    JoinType::Inner => " INNER JOIN",
+                    JoinType::Left => " LEFT JOIN",
+                    JoinType::Right => " RIGHT JOIN",
+                    JoinType::Full => " FULL JOIN",
+                };
+                self.sql.push_str(join_str);
+                self.visit(right);
+                self.sql.push_str(" ON");
+                self.visit(on);
+            }
+            SqlAst::Expression(sql_ast) => {
+                self.sql.push_str(" (");
+                self.visit(sql_ast);
+                self.sql.push(')');
+            }
+            SqlAst::Subquery(sql_ast, alias) => {
+                self.sql.push_str(" (");
+                self.visit(sql_ast);
+                self.sql.push_str(&format!(") {}", alias));
+            }
+            SqlAst::Logical { items, variant } => match variant {
+                LogicalVariant::And => self.visit_list(items, " AND"),
+                LogicalVariant::Or => {
+                    self.sql.push_str(" (");
+                    self.visit_list(items, " OR");
+                    self.sql.push(')');
+                }
+            },
+            SqlAst::Comparison {
+                left,
+                operator,
+                right,
+            } => {
+                self.visit(left);
+                let operator_str = match operator {
+                    Operator::Equal => " =",
+                    Operator::NotEqual => " <>",
+                    Operator::Less => " <",
+                    Operator::Greater => " >",
+                    Operator::LessOrEqual => " <=",
+                    Operator::GreaterOrEqual => " >=",
+                    Operator::In => " IN",
+                };
+                self.sql.push_str(operator_str);
+                if let Operator::In = operator {
+                    self.sql.push_str(" (");
+                    self.visit(right);
+                    self.sql.push(')');
+                } else {
+                    self.visit(right);
+                }
+            }
         }
-        if let Some(group_by_clause) = group_by {
-            self.sql.push_str(" GROUP BY");
-            self.visit_list(group_by_clause, ",");
-        }
-        if let Some(order_by_clause) = order_by {
-            self.sql.push_str(" ORDER BY");
-            self.visit_list(order_by_clause, ",");
-        }
-    }
-    fn visit_column(&mut self, name: &str) {
-        self.sql.push_str(&format!(" {}", name));
     }
 
     fn visit_list(&mut self, items: &[SqlAst], separator: &str) {
@@ -188,84 +175,7 @@ impl SqlVisitor for SQLGenerator {
             if index > 0 {
                 self.sql.push_str(separator);
             }
-            item.accept(self);
-        }
-    }
-    fn visit_table(&mut self, name: &str, alias: &str) {
-        self.sql.push_str(&format!(" {} {}", name, alias));
-    }
-
-    fn visit_column_alias(&mut self, column: &str, alias: &str) {
-        self.sql.push_str(&format!(" {} AS {}", column, alias));
-    }
-
-    fn visit_join(
-        &mut self,
-        left: &SqlAst,
-        right: &SqlAst,
-        join_type: &JoinType,
-        on: &SqlAst,
-    ) {
-        left.accept(self);
-        let join_str = match join_type {
-            JoinType::Inner => " INNER JOIN",
-            JoinType::Left => " LEFT JOIN",
-            JoinType::Right => " RIGHT JOIN",
-            JoinType::Full => " FULL JOIN",
-        };
-        self.sql.push_str(join_str);
-        right.accept(self);
-        self.sql.push_str(" ON");
-        on.accept(self);
-    }
-
-    fn visit_expression(&mut self, sql_ast: &SqlAst) {
-        self.sql.push_str(" (");
-        sql_ast.accept(self);
-        self.sql.push(')');
-    }
-
-    fn visit_where(&mut self, condition: &SqlAst) {
-        condition.accept(self);
-    }
-
-    fn visit_subquery(&mut self, sql_ast: &SqlAst, alias: &str) {
-        self.visit_expression(sql_ast);
-        self.sql.push_str(&format!(" {}", alias));
-    }
-
-    fn visit_condition(
-        &mut self,
-        left: &SqlAst,
-        operator: &Operator,
-        right: &SqlAst,
-    ) {
-        left.accept(self);
-        let operator_str = match operator {
-            Operator::Equal => " =",
-            Operator::NotEqual => " <>",
-            Operator::Less => " <",
-            Operator::Greater => " >",
-            Operator::LessOrEqual => " <=",
-            Operator::GreaterOrEqual => " >=",
-            Operator::In => " IN",
-        };
-        self.sql.push_str(operator_str);
-        if operator == &Operator::In {
-            self.visit_expression(right);
-        } else {
-            right.accept(self);
-        }
-    }
-
-    fn visit_logical(&mut self, items: &[SqlAst], variant: &LogicalVariant) {
-        match variant {
-            LogicalVariant::And => self.visit_list(items, " AND"),
-            LogicalVariant::Or => {
-                self.sql.push_str(" (");
-                self.visit_list(items, " OR");
-                self.sql.push(')');
-            }
+            self.visit(item);
         }
     }
 }
@@ -346,7 +256,7 @@ mod tests {
                     panic!("Expected SQLAst::Column");
                 }
             } else {
-                panic!("Expected SQLAst::Condition");
+                panic!("Expected SQLAst::Comparison");
             }
         } else {
             panic!("Expected SQLAst::Join");
@@ -384,7 +294,7 @@ mod tests {
 
     #[test]
     fn test_generate_sql_with_subquery_and_joins() {
-        let subquery_ast = SqlAst::Expression(Box::new(SqlAst::Select {
+        let subquery_ast = SqlAst::Select {
             columns: vec![SqlAst::Column(rc!["inner_col"])],
             from: Box::new(SqlAst::Table(
                 rc!["inner_table"],
@@ -393,11 +303,11 @@ mod tests {
             where_clause: None,
             group_by: None,
             order_by: None,
-        }));
+        };
 
         let inner_join = SqlAst::Join {
             left: Box::new(SqlAst::Table(rc!["table1"], rc!["table1"])),
-            right: Box::new(subquery_ast),
+            right: Box::new(SqlAst::Expression(Box::new(subquery_ast))),
             join_type: JoinType::Inner,
             on: Box::new(SqlAst::Comparison {
                 left: Box::new(SqlAst::Column(rc!["table1.id"])),
@@ -450,11 +360,7 @@ mod tests {
 
         assert_eq!(
             sql.trim(),
-            "SELECT table1.col1 AS alias1, table2.col2 \
-            FROM table1 table1 \
-            INNER JOIN (SELECT inner_col FROM inner_table inner_table) ON table1.id = inner_table.fk_id \
-            LEFT JOIN table2 table2 ON table1.id = table2.fk_id \
-            WHERE date >= ? AND date < ?"
+            "SELECT table1.col1 AS alias1, table2.col2 FROM table1 table1 INNER JOIN (SELECT inner_col FROM inner_table inner_table) ON table1.id = inner_table.fk_id LEFT JOIN table2 table2 ON table1.id = table2.fk_id WHERE date >= ? AND date < ?"
         );
     }
 
