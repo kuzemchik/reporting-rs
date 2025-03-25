@@ -22,7 +22,7 @@ pub enum SqlAst {
         on: Box<SqlAst>,
     },
     Expression(Box<SqlAst>),
-
+    Literal(String),
     Comparison {
         left: Box<SqlAst>,
         operator: Operator,
