@@ -1,4 +1,4 @@
-use crate::domain::models::{Column, Datasource, ReportRequest, Filter};
+use crate::domain::models::{Column, Datasource, Filter, ReportRequest};
 use crate::executor::query::{JoinType, LogicalVariant, Operator, SqlAst};
 use crate::rc;
 use std::rc::Rc;
@@ -9,7 +9,7 @@ pub enum Error {
     MissingFilter(String),
 }
 
-struct QueryPlanner {
+pub struct QueryPlanner {
     datasource: Datasource,
 }
 
@@ -21,15 +21,28 @@ impl QueryPlanner {
                 let mut end_date = None;
                 for f in value.iter() {
                     match f {
-                        Filter::Gte { column, value } if column == "date" => start_date = Some(value.clone()),
-                        Filter::Lt { column, value } if column == "date" => end_date = Some(value.clone()),
-                        _ => {},
+                        Filter::Gte { column, value } if column == "date" => {
+                            start_date = Some(value.clone())
+                        }
+                        Filter::Lt { column, value } if column == "date" => {
+                            end_date = Some(value.clone())
+                        }
+                        _ => {}
                     }
                 }
-                (start_date.ok_or(Error::MissingFilter("start_date".to_string()))?,
-                 end_date.ok_or(Error::MissingFilter("end_date".to_string()))?)
-            },
-            _ => return Err(Error::MissingFilter("Expected And filter".to_string())),
+                (
+                    start_date.ok_or(Error::MissingFilter(
+                        "start_date".to_string(),
+                    ))?,
+                    end_date
+                        .ok_or(Error::MissingFilter("end_date".to_string()))?,
+                )
+            }
+            _ => {
+                return Err(Error::MissingFilter(
+                    "Expected And filter".to_string(),
+                ))
+            }
         };
         let columns: Vec<Column> = request
             .columns
@@ -135,7 +148,9 @@ impl QueryPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::models::{Datasource, Column, ReportRequest, Filter, ColumnType};
+    use crate::domain::models::{
+        Column, ColumnType, Datasource, Filter, ReportRequest,
+    };
 
     #[test]
     fn test_plan_success() {
@@ -158,10 +173,18 @@ mod tests {
 
         let request = ReportRequest {
             columns: vec!["username".to_string()],
-            filters: Filter::And { value: vec![
-                Filter::Gte { column: "date".to_string(), value: "2020-01-01".to_string() },
-                Filter::Lt { column: "date".to_string(), value: "2021-01-01".to_string() },
-            ]},
+            filters: Filter::And {
+                value: vec![
+                    Filter::Gte {
+                        column: "date".to_string(),
+                        value: "2020-01-01".to_string(),
+                    },
+                    Filter::Lt {
+                        column: "date".to_string(),
+                        value: "2021-01-01".to_string(),
+                    },
+                ],
+            },
             sort: vec![],
             // Add other fields if ReportRequest requires them.
         };
