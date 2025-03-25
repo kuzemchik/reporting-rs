@@ -16,7 +16,7 @@ impl ReportService {
     }
 
     pub fn create_report(&self, request: ReportRequest) -> Report {
-        let id: Rc<str> = Rc::from(Uuid::new_v4().to_string().as_str());
+        let id: Rc<str> = Uuid::new_v4().to_string().into_boxed_str().into();
 
         let status = ReportStatus::Pending;
         let metadata = None;
