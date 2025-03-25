@@ -14,6 +14,9 @@ pub struct QueryPlanner {
 }
 
 impl QueryPlanner {
+    pub fn new(datasource: Datasource) -> Self {
+        QueryPlanner { datasource }
+    }
     pub fn plan(&self, request: ReportRequest) -> Result<SqlAst, Error> {
         let (start_date, end_date) = match request.filters {
             Filter::And { value } => {
