@@ -56,11 +56,8 @@ fn integration_test_generated_query() {
     let mut generator = SQLGenerator::new();
     let generated_query = generator.generate_sql(&ast);
 
-    // Assert that the generated query contains expected substrings
-    assert!(generated_query.contains("FROM"));
-    assert!(generated_query.contains("WHERE"));
-    assert!(generated_query.contains(">= 2020-01-01") || generated_query.contains(">=2020-01-01"));
-    assert!(generated_query.contains("< 2021-01-01") || generated_query.contains("<2021-01-01"));
+    let expected_query = "SELECT FROM (SELECT from_unixtime(fact_table.ts, 'YYYY-mm-dd') AS date, campaign_hierarchy.campaign_id AS campaign_id, fact_table.line_item_id AS line_item_id, sum(fact_table.impressions) AS sum_impressions, sum(fact_table.clicks) AS sum_clicks FROM fact_table fact_table LEFT JOIN campaign_hierarchy campaign_hierarchy ON fact_table.line_item_id = campaign_hierarchy.line_item_id WHERE from_unixtime(fact_table.ts, 'YYYY-mm-dd') >= ? AND from_unixtime(fact_table.ts, 'YYYY-mm-dd') < ? GROUP BY from_unixtime(fact_table.ts, 'YYYY-mm-dd'), fact_table.line_item_id, campaign_hierarchy.campaign_id) facts LEFT JOIN dim_campaign dim_campaign ON facts.campaign_id = dim_campaign.campaign_id";
+    assert_eq!(generated_query.trim(), expected_query);
 }
 }
 
