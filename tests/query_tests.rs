@@ -21,6 +21,47 @@ fn test_report_conversion() {
     let report = report_service.create_report(request);
 
     assert_eq!(report.status, ReportStatus::Pending);
+#[test]
+fn integration_test_generated_query() {
+    use reporting::executor::planner::QueryPlanner;
+    use reporting::domain::models::{Datasource, Column, ReportRequest, Filter, ColumnType};
+    use reporting::executor::query::SQLGenerator;
+    use reporting::rc;
+
+    let column = Column {
+        name: rc!["username"],
+        column_id: rc!["username"],
+        expression: rc!["username"],
+        column_type: ColumnType::Grouping,
+        data_type: rc!["text"],
+    };
+
+    let datasource = Datasource {
+        name: rc!["default"],
+        columns: vec![column],
+    };
+
+    let planner = QueryPlanner { datasource };
+    let request = ReportRequest {
+        columns: vec!["username".to_string()],
+        filters: Filter::And { value: vec![
+            Filter::Gte { column: "date".to_string(), value: "2020-01-01".to_string() },
+            Filter::Lt { column: "date".to_string(), value: "2021-01-01".to_string() },
+        ]},
+        sort: vec![],
+    };
+
+    let ast = planner.plan(request).expect("Planning should succeed");
+
+    let mut generator = SQLGenerator::new();
+    let generated_query = generator.generate_sql(&ast);
+
+    // Assert that the generated query contains expected substrings
+    assert!(generated_query.contains("FROM"));
+    assert!(generated_query.contains("WHERE"));
+    assert!(generated_query.contains(">= 2020-01-01") || generated_query.contains(">=2020-01-01"));
+    assert!(generated_query.contains("< 2021-01-01") || generated_query.contains("<2021-01-01"));
+}
 }
 
 #[test]
