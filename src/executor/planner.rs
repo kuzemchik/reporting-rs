@@ -15,6 +15,22 @@ struct QueryPlanner {
 
 impl QueryPlanner {
     pub fn plan(&self, request: ReportRequest) -> Result<SqlAst, Error> {
+        let (start_date, end_date) = match request.filters {
+            Filter::And { value } => {
+                let mut start_date = None;
+                let mut end_date = None;
+                for f in value.iter() {
+                    match f {
+                        Filter::Gte { column, value } if column == "date" => start_date = Some(value.clone()),
+                        Filter::Lt { column, value } if column == "date" => end_date = Some(value.clone()),
+                        _ => {},
+                    }
+                }
+                (start_date.ok_or(Error::MissingFilter("start_date".to_string()))?,
+                 end_date.ok_or(Error::MissingFilter("end_date".to_string()))?)
+            },
+            _ => return Err(Error::MissingFilter("Expected And filter".to_string())),
+        };
         let columns: Vec<Column> = request
             .columns
             .iter()
