@@ -39,3 +39,39 @@ fn test_yaml_conversion() {
 
     assert_eq!(ressurected_column, column);
 }
+
+#[test]
+fn integration_test_query_planner() {
+    use reporting::executor::planner::QueryPlanner;
+    use reporting::domain::models::{Datasource, Column, ReportRequest, Filter, ColumnType};
+    use reporting::rc;
+
+    // Setup a dummy column so that QueryPlanner.get_column can find it.
+    let column = Column {
+        name: rc!["username"],
+        column_id: rc!["username"],
+        expression: rc!["username"],
+        column_type: ColumnType::Grouping,
+        data_type: rc!["text"],
+    };
+
+    let datasource = Datasource {
+        name: rc!["default"],
+        columns: vec![column],
+        // add other fields as needed
+    };
+
+    let planner = QueryPlanner { datasource };
+    let request = ReportRequest {
+        columns: vec!["username".to_string()],
+        filters: Filter::And { value: vec![
+            Filter::Gte { column: "date".to_string(), value: "2022-01-01".to_string() },
+            Filter::Lt { column: "date".to_string(), value: "2022-12-31".to_string() },
+        ]},
+        sort: vec![],
+        // any additional fields required by ReportRequest
+    };
+
+    let plan_result = planner.plan(request);
+    assert!(plan_result.is_ok());
+}
