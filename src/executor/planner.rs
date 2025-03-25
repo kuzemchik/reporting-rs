@@ -1,4 +1,4 @@
-use crate::domain::models::{Column, Datasource, ReportRequest};
+use crate::domain::models::{Column, Datasource, ReportRequest, Filter};
 use crate::executor::query::{JoinType, LogicalVariant, Operator, SqlAst};
 use crate::rc;
 use std::rc::Rc;
@@ -6,6 +6,7 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub enum Error {
     ColumnNotFound(String),
+    MissingFilter(String),
 }
 
 struct QueryPlanner {
@@ -55,14 +56,14 @@ impl QueryPlanner {
                             "from_unixtime(fact_table.ts, 'YYYY-mm-dd')"
                         ])),
                         operator: Operator::GreaterOrEqual,
-                        right: Box::new(SqlAst::Column(rc!["?"])),
+                        right: Box::new(SqlAst::Value(start_date)),
                     },
                     SqlAst::Comparison {
                         left: Box::new(SqlAst::Column(rc![
                             "from_unixtime(fact_table.ts, 'YYYY-mm-dd')"
                         ])),
                         operator: Operator::Less,
-                        right: Box::new(SqlAst::Column(rc!["?"])),
+                        right: Box::new(SqlAst::Value(end_date)),
                     },
                 ],
                 variant: LogicalVariant::And,
