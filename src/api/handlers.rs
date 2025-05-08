@@ -1,7 +1,6 @@
 use crate::api::Env;
-use crate::domain::models::*;
-use crate::executor::templates::{Dim, ReportQuery};
-use askama::Template;
+use crate::domain::models::{Report, ReportStatus};
+
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 use axum::Json;
@@ -33,6 +32,6 @@ pub async fn report(
 }
 
 #[axum_macros::debug_handler]
-pub async fn query(State(_env): State<Arc<Env>>) -> String {
-    ReportQuery::new(vec![], Dim::IO as u64).render().unwrap()
+pub async fn query(State(_env): State<Arc<Env>>) -> impl IntoResponse {
+    todo!("Not implemented");
 }

@@ -58,5 +58,5 @@ flowchart TD
    A[root()] --> B[Return "Hello, World!"]
    A --> C[get_datasources()] --> D[Call repository.load_datasources()]
    A --> E[report()] --> F[Todo: Not implemented]
-   A --> G[query()] --> H[Render ReportQuery using templates]
+   A --> G[query()] --> H[Generate SQL query]
 ```
