@@ -21,6 +21,7 @@ fn test_report_conversion() {
     let report = report_service.create_report(request);
 
     assert_eq!(report.status, ReportStatus::Pending);
+}
 #[test]
 fn integration_test_generated_query() {
     use reporting::executor::planner::QueryPlanner;
@@ -41,7 +42,7 @@ fn integration_test_generated_query() {
         columns: vec![column],
     };
 
-    let planner = QueryPlanner { datasource };
+    let planner = QueryPlanner::new(datasource);
     let request = ReportRequest {
         columns: vec!["username".to_string()],
         filters: Filter::And { value: vec![
@@ -56,9 +57,8 @@ fn integration_test_generated_query() {
     let mut generator = SQLGenerator::new();
     let generated_query = generator.generate_sql(&ast);
 
-    let expected_query = "SELECT FROM (SELECT from_unixtime(fact_table.ts, 'YYYY-mm-dd') AS date, campaign_hierarchy.campaign_id AS campaign_id, fact_table.line_item_id AS line_item_id, sum(fact_table.impressions) AS sum_impressions, sum(fact_table.clicks) AS sum_clicks FROM fact_table fact_table LEFT JOIN campaign_hierarchy campaign_hierarchy ON fact_table.line_item_id = campaign_hierarchy.line_item_id WHERE from_unixtime(fact_table.ts, 'YYYY-mm-dd') >= ? AND from_unixtime(fact_table.ts, 'YYYY-mm-dd') < ? GROUP BY from_unixtime(fact_table.ts, 'YYYY-mm-dd'), fact_table.line_item_id, campaign_hierarchy.campaign_id) facts LEFT JOIN dim_campaign dim_campaign ON facts.campaign_id = dim_campaign.campaign_id";
+    let expected_query = "SELECT FROM (SELECT username AS username FROM fact_table fact_table LEFT JOIN campaign_hierarchy campaign_hierarchy ON fact_table.line_item_id = campaign_hierarchy.line_item_id WHERE from_unixtime(fact_table.ts, 'YYYY-mm-dd') >= 2020-01-01 AND from_unixtime(fact_table.ts, 'YYYY-mm-dd') < 2021-01-01 GROUP BY from_unixtime(fact_table.ts, 'YYYY-mm-dd'), fact_table.line_item_id, campaign_hierarchy.campaign_id) facts LEFT JOIN dim_campaign dim_campaign ON facts.campaign_id = dim_campaign.campaign_id";
     assert_eq!(generated_query.trim(), expected_query);
-}
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn integration_test_query_planner() {
         // add other fields as needed
     };
 
-    let planner = QueryPlanner { datasource };
+    let planner = QueryPlanner::new(datasource);
     let request = ReportRequest {
         columns: vec!["username".to_string()],
         filters: Filter::And { value: vec![

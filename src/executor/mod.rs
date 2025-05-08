@@ -1,4 +1,4 @@
-mod planner;
+pub mod planner;
 pub mod query;
 pub mod templates;
 
